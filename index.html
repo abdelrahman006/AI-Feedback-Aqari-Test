@@ -147,7 +147,7 @@
 
 <script>
   // ─── REPLACE THIS with your deployed Apps Script URL ───────────────────────
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwQmlh9ReHUIMbIOtYpaPd0Uk2FLxVkQ4R2AGrTaffPqr-HApyp2LuvFt3hmS4doum9/exec';
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsRHphn2FybVNcBS9iWBD1OAZzIOkhgwB2eGbP4Hakm0hzf6ED40ModCrGLPS8C0Ek/exec';
   // ──────────────────────────────────────────────────────────────────────────
 
   const ISSUES = [
@@ -298,12 +298,45 @@
         agent,
         reportDate: rdate,
         submittedAt: new Date().toISOString(),
-        chats: encodeURIComponent(JSON.stringify(chats)),
+        chats: JSON.stringify(chats),
       });
       const url = APPS_SCRIPT_URL + '?' + params.toString();
 
-      const res = await fetch(url, { method: 'GET', mode: 'no-cors' });
-      // no-cors means we won't get a readable response, but the request goes through
+      // Use hidden iframe — bypasses all CORS/org restrictions, works for anyone
+      await new Promise((resolve, reject) => {
+        let iframe = document.getElementById('submit-iframe');
+        if (!iframe) {
+          iframe = document.createElement('iframe');
+          iframe.id = 'submit-iframe';
+          iframe.name = 'submit-iframe';
+          iframe.style.display = 'none';
+          document.body.appendChild(iframe);
+        }
+        // Create a hidden form and submit it into the iframe
+        let form = document.getElementById('submit-form-hidden');
+        if (!form) {
+          form = document.createElement('form');
+          form.id = 'submit-form-hidden';
+          form.style.display = 'none';
+          form.method = 'GET';
+          form.target = 'submit-iframe';
+          document.body.appendChild(form);
+        }
+        form.action = APPS_SCRIPT_URL;
+        form.innerHTML = '';
+        const fields = { agent, reportDate: rdate, submittedAt: new Date().toISOString(), chats: encodeURIComponent(JSON.stringify(chats)) };
+        Object.entries(fields).forEach(([k, v]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = k;
+          input.value = v;
+          form.appendChild(input);
+        });
+        iframe.onload = () => resolve();
+        setTimeout(resolve, 5000); // fallback after 5s
+        form.submit();
+      });
+
       document.getElementById('success-overlay').classList.add('show');
     } catch (err) {
       alert('Something went wrong. Please try again.');
