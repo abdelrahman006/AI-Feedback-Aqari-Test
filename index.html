@@ -340,6 +340,16 @@
     }
   }
 
+  function resetForm() {
+    document.getElementById('success-overlay').classList.remove('show');
+    document.getElementById('chats-container').innerHTML = '';
+    document.getElementById('agent-name').value = '';
+    document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+    chatCount = 0;
+    addChat();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   // ─── Share / Copy ──────────────────────────────────────────────────────────
   function buildReport() {
     const agent = document.getElementById('agent-name').value || '—';
