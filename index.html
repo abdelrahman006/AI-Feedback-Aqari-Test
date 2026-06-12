@@ -146,8 +146,9 @@
 </div>
 
 <script>
-  // ─── REPLACE THIS with your deployed Apps Script URL ───────────────────────
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwlxcYSKZRYI0wVOt7klqJfAWVoxcYGadXF3q5FKkoD6Qe1KfeK8hlF_6znioCm8uY/exec';
+  // ─── Supabase config ────────────────────────────────────────────────────────
+  const SUPABASE_URL = 'https://rsszysjhjtdrrncudvsz.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RxOc793Ty7qklS1aTgsi8Q_kQr9RgYM';
   // ──────────────────────────────────────────────────────────────────────────
 
   const ISSUES = [
@@ -280,7 +281,7 @@
     });
   }
 
-  // ─── Submit to Google Sheet ────────────────────────────────────────────────
+  // ─── Submit to Supabase ──────────────────────────────────────────────────────
   async function submitReport() {
     const agent = document.getElementById('agent-name').value.trim();
     const rdate = document.getElementById('report-date').value;
@@ -294,66 +295,49 @@
     btn.innerHTML = '<span class="spinner"></span> Submitting...';
 
     try {
-      const params = new URLSearchParams({
-        agent,
-        reportDate: rdate,
-        submittedAt: new Date().toISOString(),
-        chats: JSON.stringify(chats),
-      });
-      const url = APPS_SCRIPT_URL + '?' + params.toString();
+      // Generate report ID client side
+      const reportId = 'RPT-' + Date.now().toString().slice(-6);
+      const submittedAt = new Date().toISOString();
 
-      // Use hidden iframe — bypasses all CORS/org restrictions, works for anyone
-      await new Promise((resolve, reject) => {
-        let iframe = document.getElementById('submit-iframe');
-        if (!iframe) {
-          iframe = document.createElement('iframe');
-          iframe.id = 'submit-iframe';
-          iframe.name = 'submit-iframe';
-          iframe.style.display = 'none';
-          document.body.appendChild(iframe);
-        }
-        // Create a hidden form and submit it into the iframe
-        let form = document.getElementById('submit-form-hidden');
-        if (!form) {
-          form = document.createElement('form');
-          form.id = 'submit-form-hidden';
-          form.style.display = 'none';
-          form.method = 'GET';
-          form.target = 'submit-iframe';
-          document.body.appendChild(form);
-        }
-        form.action = APPS_SCRIPT_URL;
-        form.innerHTML = '';
-        const fields = { agent, reportDate: rdate, submittedAt: new Date().toISOString(), chats: encodeURIComponent(JSON.stringify(chats)) };
-        Object.entries(fields).forEach(([k, v]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = k;
-          input.value = v;
-          form.appendChild(input);
-        });
-        iframe.onload = () => resolve();
-        setTimeout(resolve, 5000); // fallback after 5s
-        form.submit();
+      // One row per chat
+      const rows = chats.map((chat, idx) => ({
+        report_id:    idx === 0 ? reportId : '',
+        agent:        idx === 0 ? agent : '',
+        report_date:  idx === 0 ? rdate : '',
+        submitted_at: idx === 0 ? submittedAt : '',
+        chat_num:     String(chat.num),
+        client_name:  chat.user,
+        chat_date:    chat.date,
+        chat_link:    chat.link,
+        issues:       chat.issues.join(', '),
+        bot_did_wrong: chat.botmsg,
+        how_intervened: chat.action,
+        suggestion:   chat.sug,
+      }));
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify(rows),
       });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
 
       document.getElementById('success-overlay').classList.add('show');
     } catch (err) {
-      alert('Something went wrong. Please try again.');
+      alert('Error: ' + err.message);
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<i class="ti ti-send"></i> Submit Report to Sheet';
     }
-  }
-
-  function resetForm() {
-    document.getElementById('success-overlay').classList.remove('show');
-    document.getElementById('chats-container').innerHTML = '';
-    document.getElementById('agent-name').value = '';
-    document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
-    chatCount = 0;
-    addChat();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // ─── Share / Copy ──────────────────────────────────────────────────────────
