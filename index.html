@@ -147,7 +147,7 @@
 
 <script>
   // ─── REPLACE THIS with your deployed Apps Script URL ───────────────────────
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyVKvp2EyjklhQr0R7BhGkmb2PRxAJf2NQcImQz62onrvb2X-B80SNGEAVefq33GFG2/exec';
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwQmlh9ReHUIMbIOtYpaPd0Uk2FLxVkQ4R2AGrTaffPqr-HApyp2LuvFt3hmS4doum9/exec';
   // ──────────────────────────────────────────────────────────────────────────
 
   const ISSUES = [
@@ -301,15 +301,12 @@
         chats: encodeURIComponent(JSON.stringify(chats)),
       });
       const url = APPS_SCRIPT_URL + '?' + params.toString();
-      await new Promise((resolve) => {
-        const img = new Image();
-        img.onload = img.onerror = resolve;
-        img.src = url;
-        setTimeout(resolve, 5000);
-      });
+
+      const res = await fetch(url, { method: 'GET', mode: 'no-cors' });
+      // no-cors means we won't get a readable response, but the request goes through
       document.getElementById('success-overlay').classList.add('show');
     } catch (err) {
-      alert('Something went wrong. Please try again or copy the report manually.');
+      alert('Something went wrong. Please try again.');
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<i class="ti ti-send"></i> Submit Report to Sheet';
